@@ -1,153 +1,156 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/utils/supabase";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
+
+type UserRole = 'owner' | 'vet';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>('owner');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [errorMessage, setErrorMessage] = useState('');
+  const router = useRouter();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    setErrorMessage('');
 
-    try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-        if (error) {
-          setError(error.message);
-          return;
-        }
-
-        setMessage("เข้าสู่ระบบสำเร็จ กำลังไปยังหน้าตรวจสอบข้อมูล...");
-        router.push("/test-pets");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (error) {
-          setError(error.message);
-          return;
-        }
-
-        setMessage(
-          "สมัครสมาชิกเรียบร้อยแล้ว หากต้องยืนยันอีเมล โปรดตรวจสอบอีเมลทันที"
-        );
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase");
-      }
-    } finally {
+    if (error) {
+      setErrorMessage('อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
       setLoading(false);
+    } else {
+      // เมื่อล็อกอินสำเร็จ สามารถส่งแยกหน้าตามบทบาทได้ (เช่น /dashboard สำหรับหมอ หรือ / สำหรับเจ้าของ)
+      if (role === 'vet') {
+        router.push('/clinic-dashboard');
+      } else {
+        router.push('/pet-dashboard');
+      }
+      router.refresh();
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4 py-12 dark:bg-black">
-      <div className="w-full max-w-lg rounded-3xl border border-black/5 bg-white p-10 shadow-xl shadow-black/5 dark:border-white/10 dark:bg-zinc-950">
-        <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-            VetShare
-          </p>
-          <h1 className="text-3xl font-semibold text-zinc-950 dark:text-zinc-50">
-            {mode === "signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก"}
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50 to-white px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-6 bg-white p-8 rounded-2xl shadow-xl border border-slate-100 transition-all duration-300">
+        
+        {/* Brand & Subtitle */}
+        <div className="text-center">
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+            Vet<span className="text-sky-500">Share</span>
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            ใช้อีเมลและรหัสผ่านเพื่อเข้าสู่ระบบหรือสร้างบัญชีใหม่
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            ระบบเวชระเบียนสัตวแพทย์ควบคุมสิทธิ์ผ่านคิวอาร์โค้ด
           </p>
         </div>
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        {/* Role Selector Tabs */}
+        <div className="flex p-1 bg-slate-100 rounded-xl mt-6">
+          <button
+            type="button"
+            onClick={() => setRole('owner')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              role === 'owner'
+                ? 'bg-white text-sky-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🐾 เจ้าของสัตว์เลี้ยง
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('vet')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              role === 'vet'
+                ? 'bg-white text-sky-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🩺 สัตวแพทย์ / คลินิก
+          </button>
+        </div>
+
+        {/* Status Error Message */}
+        {errorMessage && (
+          <div className="p-3.5 text-sm text-red-600 bg-red-50 rounded-xl border border-red-100 font-medium animate-pulse">
+            ⚠️ {errorMessage}
+          </div>
+        )}
+
+        {/* Form Fields */}
+        <form className="space-y-4" onSubmit={handleLogin}>
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              อีเมล
+            <label htmlFor="email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              อีเมลผู้ใช้งาน
             </label>
             <input
+              id="email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
               required
-              className="w-full rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-base outline-none transition focus:border-black focus:ring-2 focus:ring-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all text-sm"
+              placeholder={role === 'owner' ? 'owner@example.com' : 'vet@clinic.com'}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              รหัสผ่าน
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label htmlFor="password" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                รหัสผ่าน
+              </label>
+              <a href="#" className="text-xs font-semibold text-sky-500 hover:text-sky-600 transition-colors">
+                ลืมรหัสผ่าน?
+              </a>
+            </div>
             <input
+              id="password"
               type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
               required
-              minLength={6}
-              className="w-full rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-base outline-none transition focus:border-black focus:ring-2 focus:ring-black/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all text-sm"
+              placeholder="••••••••"
             />
           </div>
-
-          {error ? (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              {error}
-            </p>
-          ) : null}
-
-          {message ? (
-            <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-              {message}
-            </p>
-          ) : null}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-black px-5 py-3 text-base font-semibold text-white transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-sky-500 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600 hover:shadow-sky-500/30 active:scale-[0.99] disabled:bg-sky-300 disabled:pointer-events-none mt-2"
           >
-            {loading
-              ? "กำลังประมวลผล..."
-              : mode === "signin"
-              ? "เข้าสู่ระบบ"
-              : "สมัครสมาชิก"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                กำลังยืนยันตัวตน...
+              </span>
+            ) : (
+              'เข้าสู่ระบบ'
+            )}
           </button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
-          <p>
-            {mode === "signin"
-              ? "ยังไม่มีบัญชี?"
-              : "มีบัญชีแล้ว?"}
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
-                setError(null);
-                setMessage(null);
-              }}
-              className="ml-2 font-semibold text-black underline decoration-dotted underline-offset-4 dark:text-white"
-            >
-              {mode === "signin" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
-            </button>
-          </p>
-          <p className="text-xs text-zinc-400">
-            รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร
+        {/* Secondary Actions */}
+        <div className="text-center pt-2">
+          <p className="text-xs text-slate-500">
+            ยังไม่มีบัญชีผู้ใช้งานใช่ไหม?{' '}
+            <a href="#" className="font-bold text-sky-500 hover:text-sky-600 transition-colors">
+              สมัครสมาชิกใหม่
+            </a>
           </p>
         </div>
+
       </div>
     </div>
   );
